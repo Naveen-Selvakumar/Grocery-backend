@@ -44,7 +44,16 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // ─── Static Files ─────────────────────────────────────────────────────────────
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// ─── Health Check ─────────────────────────────────────────────────────────────
+// ─── Root & Health Check ──────────────────────────────────────────────────────
+app.get('/', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'Smart Grocery Store API is running',
+    environment: process.env.NODE_ENV,
+    timestamp: new Date().toISOString(),
+  });
+});
+
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     success: true,
@@ -71,12 +80,14 @@ app.use('/api/chat', chatRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
-// ─── Start Server ─────────────────────────────────────────────────────────────
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`\n🚀 Smart Grocery Store Backend running in ${process.env.NODE_ENV} mode`);
-  console.log(`📡 Server URL: http://localhost:${PORT}`);
-  console.log(`🏥 Health check: http://localhost:${PORT}/api/health\n`);
-});
+// ─── Start Server (local only — Vercel uses module.exports) ──────────────────
+if (process.env.VERCEL !== '1') {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => {
+    console.log(`\n🚀 Smart Grocery Store Backend running in ${process.env.NODE_ENV} mode`);
+    console.log(`📡 Server URL: http://localhost:${PORT}`);
+    console.log(`🏥 Health check: http://localhost:${PORT}/api/health\n`);
+  });
+}
 
 module.exports = app;
