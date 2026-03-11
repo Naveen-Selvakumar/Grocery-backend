@@ -41,9 +41,8 @@ const cartSchema = new mongoose.Schema(
 
 // Recalculate totals before saving
 cartSchema.pre('save', function (next) {
-  this.totalPrice = this.items.reduce(
-    (acc, item) => acc + item.price * item.quantity,
-    0
+  this.totalPrice = parseFloat(
+    this.items.reduce((acc, item) => acc + item.price * item.quantity, 0).toFixed(2)
   );
   this.totalItems = this.items.reduce((acc, item) => acc + item.quantity, 0);
   next();

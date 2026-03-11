@@ -14,13 +14,8 @@ const path = require('path');
 
 const router = express.Router();
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, 'uploads/productImages/'),
-  filename: (req, file, cb) => {
-    cb(null, `category-${Date.now()}${path.extname(file.originalname)}`);
-  },
-});
-const upload = multer({ storage, limits: { fileSize: 2 * 1024 * 1024 } });
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
 
 const categoryValidation = [
   body('name').trim().notEmpty().withMessage('Category name is required'),

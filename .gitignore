@@ -4,3 +4,4 @@ uploads/productImages/*
 !uploads/productImages/.gitkeep
 dist/
 *.log
+.vercel

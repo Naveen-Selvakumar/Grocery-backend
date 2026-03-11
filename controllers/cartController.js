@@ -60,7 +60,14 @@ const addToCart = async (req, res, next) => {
       );
 
       if (existingItem) {
-        existingItem.quantity += quantity;
+        const newTotal = existingItem.quantity + quantity;
+        if (product.quantity < newTotal) {
+          return res.status(400).json({
+            success: false,
+            message: `Only ${product.quantity} items in stock (you already have ${existingItem.quantity} in cart)`,
+          });
+        }
+        existingItem.quantity = newTotal;
         existingItem.price = product.price;
       } else {
         cart.items.push({ product: productId, quantity, price: product.price });

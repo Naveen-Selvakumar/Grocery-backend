@@ -50,6 +50,14 @@ const addReview = async (req, res, next) => {
 
     await review.populate('user', 'name');
 
+    // Recalculate and persist product average rating
+    const allReviews = await Review.find({ product: productId });
+    const avg = allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length;
+    await Product.findByIdAndUpdate(productId, {
+      'rating.average': parseFloat(avg.toFixed(1)),
+      'rating.count': allReviews.length,
+    });
+
     res.status(201).json({
       success: true,
       message: 'Review submitted successfully',
@@ -104,6 +112,17 @@ const deleteReview = async (req, res, next) => {
     }
 
     await review.deleteOne();
+
+    // Recalculate product rating after deletion
+    const remaining = await Review.find({ product: review.product });
+    const avg = remaining.length
+      ? remaining.reduce((sum, r) => sum + r.rating, 0) / remaining.length
+      : 0;
+    await Product.findByIdAndUpdate(review.product, {
+      'rating.average': parseFloat(avg.toFixed(1)),
+      'rating.count': remaining.length,
+    });
+
     res.status(200).json({ success: true, message: 'Review deleted' });
   } catch (error) {
     next(error);

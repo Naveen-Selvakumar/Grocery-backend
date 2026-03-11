@@ -1,6 +1,4 @@
 const Tesseract = require('tesseract.js');
-const path = require('path');
-const fs = require('fs');
 
 /**
  * Common grocery keywords to help filter recognized text
@@ -70,17 +68,11 @@ const scanBill = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Bill image is required' });
     }
 
-    const imagePath = path.resolve(req.file.path);
+    // Use the in-memory buffer directly — no disk I/O needed
+    console.log(`[OCR] Processing in-memory buffer (${req.file.size} bytes)`);
 
-    // Check if file exists
-    if (!fs.existsSync(imagePath)) {
-      return res.status(400).json({ success: false, message: 'Uploaded file not found' });
-    }
-
-    console.log(`[OCR] Processing image: ${imagePath}`);
-
-    // Run Tesseract OCR
-    const { data } = await Tesseract.recognize(imagePath, 'eng', {
+    // Run Tesseract OCR on the buffer
+    const { data } = await Tesseract.recognize(req.file.buffer, 'eng', {
       logger: (m) => {
         if (m.status === 'recognizing text') {
           console.log(`[OCR] Progress: ${(m.progress * 100).toFixed(0)}%`);
@@ -90,11 +82,6 @@ const scanBill = async (req, res, next) => {
 
     const rawText = data.text;
     const detectedItems = extractGroceryItems(rawText);
-
-    // Clean up uploaded file after processing
-    fs.unlink(imagePath, (err) => {
-      if (err) console.error('[OCR] Failed to delete temp file:', err.message);
-    });
 
     res.status(200).json({
       success: true,

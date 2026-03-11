@@ -15,16 +15,8 @@ const path = require('path');
 
 const router = express.Router();
 
-// Multer config for product images
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/productImages/');
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    cb(null, `product-${uniqueSuffix}${path.extname(file.originalname)}`);
-  },
-});
+// Multer config – memory storage (Vercel has no persistent filesystem)
+const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
   const allowed = /jpeg|jpg|png|webp/;
@@ -36,7 +28,7 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-const upload = multer({ storage, fileFilter, limits: { fileSize: 5 * 1024 * 1024 } });
+const upload = multer({ storage, fileFilter });
 
 // Validation
 const productValidation = [

@@ -80,10 +80,12 @@ const createProduct = async (req, res, next) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ success: false, errors: errors.array() });
+      return res.status(400).json({ success: false, message: errors.array()[0].msg, errors: errors.array() });
     }
 
-    const imageUrl = req.file ? `/uploads/productImages/${req.file.filename}` : '';
+    const imageUrl = req.file
+      ? `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`
+      : '';
 
     const product = await Product.create({ ...req.body, image: imageUrl });
     const populated = await product.populate('category', 'name slug');
@@ -109,7 +111,7 @@ const updateProduct = async (req, res, next) => {
     }
 
     if (req.file) {
-      req.body.image = `/uploads/productImages/${req.file.filename}`;
+      req.body.image = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
     }
 
     const updated = await Product.findByIdAndUpdate(req.params.id, req.body, {

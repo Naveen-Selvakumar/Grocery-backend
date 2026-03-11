@@ -45,7 +45,9 @@ const createCategory = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Category already exists' });
     }
 
-    const imageUrl = req.file ? `/uploads/productImages/${req.file.filename}` : '';
+    const imageUrl = req.file
+      ? `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`
+      : '';
     const category = await Category.create({ name, description, image: imageUrl });
 
     res.status(201).json({
@@ -69,7 +71,7 @@ const updateCategory = async (req, res, next) => {
     }
 
     if (req.file) {
-      req.body.image = `/uploads/productImages/${req.file.filename}`;
+      req.body.image = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
     }
 
     const updated = await Category.findByIdAndUpdate(req.params.id, req.body, {

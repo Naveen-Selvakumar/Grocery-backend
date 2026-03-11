@@ -21,9 +21,6 @@ const ocrRoutes = require('./routes/ocrRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 
-// Connect to MongoDB
-connectDB();
-
 const app = express();
 
 // ─── Security & Utility Middleware ────────────────────────────────────────────
@@ -55,6 +52,17 @@ app.use(cors({
 // Handle preflight OPTIONS requests for all routes
 app.options('*', cors());
 
+// Ensure MongoDB is connected before every request (critical for Vercel serverless)
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    console.error('❌ DB connection failed:', err.message);
+    res.status(503).json({ success: false, message: 'Database unavailable. Please try again.' });
+  }
+});
+
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
@@ -66,10 +74,13 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ─── Root & Health Check ──────────────────────────────────────────────────────
+// Silence browser favicon requests – not an API error
+app.get('/favicon.ico', (req, res) => res.sendStatus(204));
+
 app.get('/', (req, res) => {
   res.status(200).json({
     success: true,
-    message: 'Smart Grocery Store API is running',
+    message: 'Arunachalam Grocery Store API is running',
     environment: process.env.NODE_ENV,
     timestamp: new Date().toISOString(),
   });
@@ -78,7 +89,7 @@ app.get('/', (req, res) => {
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     success: true,
-    message: 'Smart Grocery Store API is running',
+    message: 'Arunachalam Grocery Store API is running',
     environment: process.env.NODE_ENV,
     timestamp: new Date().toISOString(),
   });
@@ -105,7 +116,7 @@ app.use(errorHandler);
 if (process.env.VERCEL !== '1') {
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => {
-    console.log(`\n🚀 Smart Grocery Store Backend running in ${process.env.NODE_ENV} mode`);
+    console.log(`\n🚀 Arunachalam Grocery Store Backend running in ${process.env.NODE_ENV} mode`);
     console.log(`📡 Server URL: http://localhost:${PORT}`);
     console.log(`🏥 Health check: http://localhost:${PORT}/api/health\n`);
   });

@@ -196,7 +196,8 @@ const updateOrderStatus = async (req, res, next) => {
 
     if (status === 'Delivered') {
       order.deliveredAt = Date.now();
-      order.isPaid = order.paymentMethod !== 'COD';
+      order.isPaid = true; // COD is paid on delivery; online payments were pre-paid
+      if (!order.paidAt) order.paidAt = Date.now();
       notifyOrderDelivered(order.user, order._id);
     }
 

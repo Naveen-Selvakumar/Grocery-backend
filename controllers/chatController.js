@@ -5,7 +5,7 @@ const rules = [
   // ── Greetings ──────────────────────────────────────────────────────────────
   {
     patterns: ['hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening', 'howdy'],
-    response: "👋 Hello! Welcome to Smart Grocery Store. How can I help you today?\n\nYou can ask me about:\n• 🛒 Products & Categories\n• 📦 Orders & Tracking\n• 🛍️ Cart & Checkout\n• ❤️ Wishlist\n• 💳 Payments\n• 🔄 Returns & Refunds",
+    response: "👋 Hello! Welcome to Arunachalam Grocery Store. How can I help you today?\n\nYou can ask me about:\n• 🛒 Products & Categories\n• 📦 Orders & Tracking\n• 🛍️ Cart & Checkout\n• ❤️ Wishlist\n• 💳 Payments\n• 🔄 Returns & Refunds",
   },
 
   // ── Products ───────────────────────────────────────────────────────────────
@@ -105,7 +105,7 @@ const rules = [
   // ── Thanks / Goodbye ───────────────────────────────────────────────────────
   {
     patterns: ['thank', 'thanks', 'thank you', 'thankyou', 'great', 'awesome', 'perfect'],
-    response: "😊 You're welcome! Happy to help. Enjoy your shopping at Smart Grocery Store! 🛒",
+    response: "😊 You're welcome! Happy to help. Enjoy your shopping at Arunachalam Grocery Store! 🛒",
   },
   {
     patterns: ['bye', 'goodbye', 'see you', 'later', 'exit'],
