@@ -2,6 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const { scanBill } = require('../controllers/ocrController');
+const detectText = require('../services/visionService');
 const { protect } = require('../middleware/authMiddleware');
 
 const router = express.Router();
@@ -26,5 +27,18 @@ const upload = multer({
 });
 
 router.post('/scan-bill', protect, upload.single('bill'), scanBill);
+
+// Public endpoint: POST /api/ocr/scan — used by the React frontend
+router.post('/scan', upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'Image is required' });
+    }
+    const extractedText = await detectText(req.file.buffer);
+    res.json({ success: true, extractedText });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 module.exports = router;

@@ -1,4 +1,4 @@
-const Tesseract = require('tesseract.js');
+const detectText = require('../services/visionService');
 
 /**
  * Common grocery keywords to help filter recognized text
@@ -69,18 +69,10 @@ const scanBill = async (req, res, next) => {
     }
 
     // Use the in-memory buffer directly — no disk I/O needed
-    console.log(`[OCR] Processing in-memory buffer (${req.file.size} bytes)`);
+    console.log(`[OCR] Processing in-memory buffer via Google Vision (${req.file.size} bytes)`);
 
-    // Run Tesseract OCR on the buffer
-    const { data } = await Tesseract.recognize(req.file.buffer, 'eng', {
-      logger: (m) => {
-        if (m.status === 'recognizing text') {
-          console.log(`[OCR] Progress: ${(m.progress * 100).toFixed(0)}%`);
-        }
-      },
-    });
-
-    const rawText = data.text;
+    // Run Google Cloud Vision OCR on the buffer
+    const rawText = await detectText(req.file.buffer);
     const detectedItems = extractGroceryItems(rawText);
 
     res.status(200).json({
@@ -90,7 +82,6 @@ const scanBill = async (req, res, next) => {
         rawText: rawText.trim(),
         detectedItems,
         itemCount: detectedItems.length,
-        confidence: parseFloat(data.confidence?.toFixed(2) || 0),
       },
     });
   } catch (error) {

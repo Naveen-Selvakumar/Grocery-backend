@@ -5,3 +5,5 @@ uploads/productImages/*
 dist/
 *.log
 .vercel
+# Google service-account keys — never commit these
+config/*.json
