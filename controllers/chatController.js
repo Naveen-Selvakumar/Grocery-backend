@@ -1,5 +1,11 @@
 // ─── Rule-Based Chatbot Controller ────────────────────────────────────────────
 // Matches user messages against grocery-store keywords and returns helpful replies.
+// When the user is authenticated (via optionalAuth), user-specific intents fetch
+// live data from the database and return personalised responses.
+
+const jwt   = require('jsonwebtoken');
+const User  = require('../models/User');
+const Order = require('../models/Order');
 
 const rules = [
   // ── Greetings ──────────────────────────────────────────────────────────────
@@ -126,20 +132,183 @@ function getBotResponse(message) {
   return "🤔 I'm not sure about that. Here are some things I can help with:\n\n• 🛒 **Products** – browsing, searching\n• 📦 **Orders** – tracking, cancellation\n• 💳 **Payments** – methods, security\n• 🚚 **Delivery** – timelines, shipping\n• 🔄 **Returns** – policy, refunds\n• ❤️ **Wishlist & Cart** – managing items\n\nTry asking about any of these, or type **help** for a full list!";
 }
 
+// ─── Status icons ─────────────────────────────────────────────────────────────
+const STATUS_ICON = {
+  Pending:    '🟡',
+  Processing: '🔵',
+  Shipped:    '🚚',
+  Delivered:  '✅',
+  Cancelled:  '❌',
+};
+
+// ─── Optional Auth Middleware ─────────────────────────────────────────────────
+// Populates req.user if a valid Bearer token is present; never blocks the request.
+const optionalAuth = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      const token   = authHeader.split(' ')[1];
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      req.user      = await User.findById(decoded.id).select('-password');
+    } catch {}
+  }
+  next();
+};
+
 // ─── Controller ───────────────────────────────────────────────────────────────
-const chat = (req, res) => {
+const chat = async (req, res) => {
   const { message } = req.body;
 
   if (!message || typeof message !== 'string' || message.trim().length === 0) {
     return res.status(400).json({ success: false, error: 'Message is required' });
   }
-
   if (message.trim().length > 500) {
     return res.status(400).json({ success: false, error: 'Message too long (max 500 characters)' });
   }
 
-  const reply = getBotResponse(message);
+  const lower = message.toLowerCase().trim();
+  const user  = req.user; // set by optionalAuth if token valid
+
+  // ── Personalised / live-data intents (only when authenticated) ──────────────
+  if (user) {
+
+    // ── Greeting with user's name ─────────────────────────────────────────────
+    if (/^\s*(hello|hi+|hey|good\s+(morning|afternoon|evening)|howdy)\b/.test(lower)) {
+      return res.json({
+        success: true,
+        reply:
+          `👋 Hello **${user.name}**! Welcome back to Arunachalam Grocery Store!\n\n` +
+          `Since you're logged in, I can also:\n` +
+          `• 📦 Show your orders – ask **"my orders"** or **"track order"**\n` +
+          `• 👤 Show your profile – ask **"my profile"**\n` +
+          `• 💰 Show what you spent – ask **"my spending"**\n\n` +
+          `What can I help you with today?`,
+      });
+    }
+
+    // ── Order tracking / history ──────────────────────────────────────────────
+    if (/my order|track order|order status|order history|where is my|my purchase|recent order/.test(lower)) {
+      try {
+        const orders = await Order.find({ user: user._id })
+          .sort({ createdAt: -1 })
+          .limit(5)
+          .lean();
+
+        if (orders.length === 0) {
+          return res.json({
+            success: true,
+            reply:
+              `📦 Hi **${user.name}**, you haven't placed any orders yet.\n\n` +
+              `Browse our products and place your first order today! 🛒`,
+          });
+        }
+
+        let reply = `📦 **Your Recent Orders, ${user.name}:**\n\n`;
+        orders.forEach((order, i) => {
+          const id   = order._id.toString().slice(-8).toUpperCase();
+          const date = new Date(order.createdAt).toLocaleDateString('en-IN', {
+            day: 'numeric', month: 'short', year: 'numeric',
+          });
+          const icon  = STATUS_ICON[order.orderStatus] || '📦';
+          const items = order.orderItems || [];
+          const names = items.slice(0, 2).map(it => it.name).join(', ');
+          const more  = items.length > 2 ? ` +${items.length - 2} more` : '';
+
+          reply += `**${i + 1}. Order #${id}**\n`;
+          reply += `   📅 ${date}  ${icon} **${order.orderStatus}**\n`;
+          reply += `   🛍️ ${names}${more}\n`;
+          reply += `   💰 ₹${(order.totalPrice || 0).toFixed(2)}\n`;
+          if (order.orderStatus === 'Delivered' && order.deliveredAt) {
+            reply += `   ✅ Delivered on ${new Date(order.deliveredAt).toLocaleDateString('en-IN')}\n`;
+          }
+          reply += '\n';
+        });
+        reply += `Go to **My Orders** page to view full details and manage your orders.`;
+
+        return res.json({ success: true, reply });
+      } catch {
+        // fall through to static rule
+      }
+    }
+
+    // ── Profile / account details ─────────────────────────────────────────────
+    if (/my profile|my account|my details|my name|my email|who am i|my info|account info/.test(lower)) {
+      try {
+        const [totalOrders, deliveredOrders] = await Promise.all([
+          Order.countDocuments({ user: user._id }),
+          Order.countDocuments({ user: user._id, orderStatus: 'Delivered' }),
+        ]);
+
+        const since = user.createdAt
+          ? new Date(user.createdAt).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
+          : 'N/A';
+
+        let reply = `👤 **Your Profile:**\n\n`;
+        reply += `• **Name:** ${user.name}\n`;
+        reply += `• **Email:** ${user.email}\n`;
+        if (user.phone) reply += `• **Phone:** ${user.phone}\n`;
+        reply += `• **Member since:** ${since}\n`;
+        reply += `• **Total orders placed:** ${totalOrders}\n`;
+        reply += `• **Orders delivered:** ${deliveredOrders}\n`;
+        if (user.role === 'admin') reply += `• **Role:** 🔧 Admin\n`;
+
+        return res.json({ success: true, reply });
+      } catch {
+        return res.json({
+          success: true,
+          reply:
+            `👤 **Your Profile:**\n\n• **Name:** ${user.name}\n• **Email:** ${user.email}\n\n` +
+            `Visit **My Account** to view and edit all your details.`,
+        });
+      }
+    }
+
+    // ── Spending summary ──────────────────────────────────────────────────────
+    if (/my spending|total spent|how much|spent|expenditure/.test(lower)) {
+      try {
+        const orders = await Order.find({ user: user._id, orderStatus: { $ne: 'Cancelled' } }).lean();
+        const total  = orders.reduce((sum, o) => sum + (o.totalPrice || 0), 0);
+        return res.json({
+          success: true,
+          reply:
+            `💰 **Your Spending Summary, ${user.name}:**\n\n` +
+            `• **Total orders:** ${orders.length}\n` +
+            `• **Total spent:** ₹${total.toFixed(2)}\n\n` +
+            `Visit **My Orders** for a full breakdown.`,
+        });
+      } catch {}
+    }
+
+    // ── Latest / last order ───────────────────────────────────────────────────
+    if (/latest order|last order|most recent order/.test(lower)) {
+      try {
+        const order = await Order.findOne({ user: user._id }).sort({ createdAt: -1 }).lean();
+        if (!order) {
+          return res.json({ success: true, reply: `📦 Hi **${user.name}**, you haven't placed any orders yet.` });
+        }
+        const id   = order._id.toString().slice(-8).toUpperCase();
+        const date = new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+        const icon = STATUS_ICON[order.orderStatus] || '📦';
+        const names = (order.orderItems || []).map(it => it.name).join(', ');
+
+        return res.json({
+          success: true,
+          reply:
+            `📦 **Your Latest Order:**\n\n` +
+            `• **Order ID:** #${id}\n` +
+            `• **Date:** ${date}\n` +
+            `• **Status:** ${icon} ${order.orderStatus}\n` +
+            `• **Items:** ${names}\n` +
+            `• **Total:** ₹${(order.totalPrice || 0).toFixed(2)}\n\n` +
+            `Go to **My Orders** to track it in detail.`,
+        });
+      } catch {}
+    }
+  }
+
+  // ── Static rule-based fallback ─────────────────────────────────────────────
+  const reply = getBotResponse(lower);
   return res.json({ success: true, reply });
 };
 
-module.exports = { chat };
+module.exports = { chat, optionalAuth };
