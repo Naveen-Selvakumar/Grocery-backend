@@ -7,6 +7,7 @@ const {
   updateProduct,
   deleteProduct,
   updateStock,
+  sendManualLowStockAlert,
 } = require('../controllers/productController');
 const { protect } = require('../middleware/authMiddleware');
 const { adminMiddleware } = require('../middleware/adminMiddleware');
@@ -47,5 +48,6 @@ router.post('/', protect, adminMiddleware, upload.single('image'), productValida
 router.put('/:id', protect, adminMiddleware, upload.single('image'), updateProduct);
 router.delete('/:id', protect, adminMiddleware, deleteProduct);
 router.patch('/:id/stock', protect, adminMiddleware, updateStock);
+router.post('/low-stock-alert', protect, adminMiddleware, sendManualLowStockAlert);
 
 module.exports = router;

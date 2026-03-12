@@ -50,11 +50,11 @@ const getDashboardStats = async (req, res, next) => {
         .populate('user', 'name email')
         .select('totalPrice orderStatus createdAt user'),
 
-      // Products with stock <= 10
-      Product.find({ isActive: true, quantity: { $lte: 10 } })
-        .select('name quantity price')
+      // Products with stock <= 20
+      Product.find({ isActive: true, quantity: { $lte: 20 } })
+        .select('name quantity price image')
         .sort({ quantity: 1 })
-        .limit(10),
+        .limit(20),
     ]);
 
     const totalRevenue = revenueResult.length > 0 ? revenueResult[0].totalRevenue : 0;

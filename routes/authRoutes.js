@@ -7,6 +7,8 @@ const {
   updateUserProfile,
   getAllUsers,
   deleteUser,
+  forgotPassword,
+  resetPassword,
 } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 const { adminMiddleware } = require('../middleware/adminMiddleware');
@@ -28,6 +30,8 @@ const loginValidation = [
 // Public routes
 router.post('/register', registerValidation, registerUser);
 router.post('/login', loginValidation, loginUser);
+router.post('/forgot-password', forgotPassword);
+router.put('/reset-password/:token', resetPassword);
 
 // Private routes
 router.get('/profile', protect, getUserProfile);

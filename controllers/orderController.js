@@ -1,11 +1,13 @@
 const Order = require('../models/Order');
 const Cart = require('../models/Cart');
 const Product = require('../models/Product');
+const User = require('../models/User');
 const {
   notifyOrderPlaced,
   notifyOrderShipped,
   notifyOrderDelivered,
 } = require('../utils/notificationService');
+const { sendOrderConfirmationEmail, sendShippingNotificationEmail, sendLowStockAlertEmail } = require('../utils/emailService');
 
 // @desc    Place a new order
 // @route   POST /api/orders
@@ -79,12 +81,26 @@ const placeOrder = async (req, res, next) => {
       });
     }
 
+    // Check for low stock after deduction and alert admin
+    const updatedProducts = await Product.find({
+      _id: { $in: cart.items.map(i => i.product._id) },
+      quantity: { $lte: 20 },
+    }).select('name quantity price image');
+    if (updatedProducts.length > 0) {
+      sendLowStockAlertEmail(updatedProducts).catch(err => console.error('[Email] Low stock alert failed:', err.message));
+    }
+
     // Clear cart
     cart.items = [];
     await cart.save();
 
     // Send notification
     notifyOrderPlaced(req.user._id, order._id);
+
+    // Populate order items for email
+    const populatedOrder = await Order.findById(order._id);
+    // Send order confirmation email (non-blocking)
+    sendOrderConfirmationEmail(req.user, populatedOrder).catch(err => console.error('[Email] Order confirmation failed:', err.message));
 
     res.status(201).json({
       success: true,
@@ -203,6 +219,9 @@ const updateOrderStatus = async (req, res, next) => {
 
     if (status === 'Shipped') {
       notifyOrderShipped(order.user, order._id);
+      // Fetch user for email
+      const user = await User.findById(order.user).select('name email');
+      if (user) sendShippingNotificationEmail(user, order).catch(err => console.error('[Email] Shipping notification failed:', err.message));
     }
 
     await order.save();

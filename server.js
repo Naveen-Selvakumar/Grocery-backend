@@ -20,6 +20,7 @@ const dashboardRoutes = require('./routes/dashboardRoutes');
 const ocrRoutes = require('./routes/ocrRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const chatRoutes = require('./routes/chatRoutes');
+const offerRoutes = require('./routes/offerRoutes');
 
 const app = express();
 
@@ -107,6 +108,7 @@ app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/ocr', ocrRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/offers', offerRoutes);
 
 // ─── Error Handling ───────────────────────────────────────────────────────────
 app.use(notFound);

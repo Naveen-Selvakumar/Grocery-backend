@@ -1,6 +1,7 @@
 const { validationResult } = require('express-validator');
 const Product = require('../models/Product');
 const Category = require('../models/Category');
+const { sendLowStockAlertEmail } = require('../utils/emailService');
 
 // @desc    Get all products with search & filter
 // @route   GET /api/products
@@ -119,6 +120,11 @@ const updateProduct = async (req, res, next) => {
       runValidators: true,
     }).populate('category', 'name slug');
 
+    // Alert admin if stock is low after update
+    if (updated && updated.quantity <= 20) {
+      sendLowStockAlertEmail([updated]).catch(err => console.error('[Email] Low stock alert failed:', err.message));
+    }
+
     res.status(200).json({
       success: true,
       message: 'Product updated successfully',
@@ -168,7 +174,36 @@ const updateStock = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
 
+    // Alert admin if updated stock is low
+    if (product.quantity <= 20) {
+      sendLowStockAlertEmail([product]).catch(err => console.error('[Email] Low stock alert failed:', err.message));
+    }
+
     res.status(200).json({ success: true, message: 'Stock updated', data: product });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Admin: send low-stock alert email for ALL products with qty <= 20
+// @route   POST /api/products/low-stock-alert
+// @access  Private/Admin
+const sendManualLowStockAlert = async (req, res, next) => {
+  try {
+    const lowStockProducts = await Product.find({ quantity: { $lte: 20 } })
+      .select('name quantity price image');
+
+    if (lowStockProducts.length === 0) {
+      return res.status(200).json({ success: true, message: 'No products with low stock (≤20 units) found.' });
+    }
+
+    await sendLowStockAlertEmail(lowStockProducts);
+
+    res.status(200).json({
+      success: true,
+      message: `Low stock alert sent for ${lowStockProducts.length} product(s).`,
+      data: lowStockProducts.map(p => ({ name: p.name, quantity: p.quantity })),
+    });
   } catch (error) {
     next(error);
   }
@@ -181,4 +216,5 @@ module.exports = {
   updateProduct,
   deleteProduct,
   updateStock,
+  sendManualLowStockAlert,
 };
