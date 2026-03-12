@@ -29,7 +29,11 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-const upload = multer({ storage, fileFilter });
+const upload = multer({
+  storage,
+  fileFilter,
+  limits: { fileSize: 4 * 1024 * 1024 },   // 4 MB hard cap (Vercel limit is 4.5 MB)
+});
 
 // Validation
 const productValidation = [
