@@ -1,11 +1,11 @@
 const express = require('express');
-const { sendOfferToAllUsers } = require('../controllers/offerController');
+const { getOfferCustomers, sendOfferToUsers } = require('../controllers/offerController');
 const { protect } = require('../middleware/authMiddleware');
 const { adminMiddleware } = require('../middleware/adminMiddleware');
 
 const router = express.Router();
 
-// Admin: broadcast offer/discount email to all users
-router.post('/send', protect, adminMiddleware, sendOfferToAllUsers);
+router.get('/customers', protect, adminMiddleware, getOfferCustomers);
+router.post('/send',     protect, adminMiddleware, sendOfferToUsers);
 
 module.exports = router;
