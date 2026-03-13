@@ -32,12 +32,19 @@ const addReview = async (req, res, next) => {
       });
     }
 
-    // Check if user has purchased this product
-    const hasPurchased = await Order.findOne({
+    // Only users who have purchased this product can review it.
+    const hasPurchased = await Order.exists({
       user: req.user._id,
       'orderItems.product': productId,
-      orderStatus: 'Delivered',
+      orderStatus: { $ne: 'Cancelled' },
     });
+
+    if (!hasPurchased) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only users who purchased this product can submit a review',
+      });
+    }
 
     const review = await Review.create({
       user: req.user._id,
@@ -45,7 +52,7 @@ const addReview = async (req, res, next) => {
       rating,
       title,
       comment,
-      isVerifiedPurchase: !!hasPurchased,
+      isVerifiedPurchase: true,
     });
 
     await review.populate('user', 'name');
@@ -129,4 +136,46 @@ const deleteReview = async (req, res, next) => {
   }
 };
 
-module.exports = { addReview, getProductReviews, deleteReview };
+// @desc    Check if current user can review a product
+// @route   GET /api/reviews/can-review/:productId
+// @access  Private
+const canReviewProduct = async (req, res, next) => {
+  try {
+    const { productId } = req.params;
+
+    const product = await Product.findById(productId).select('_id isActive');
+    if (!product || !product.isActive) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+
+    const hasExistingReview = await Review.exists({
+      user: req.user._id,
+      product: productId,
+    });
+
+    if (hasExistingReview) {
+      return res.status(200).json({
+        success: true,
+        data: { canReview: false, reason: 'already_reviewed' },
+      });
+    }
+
+    const hasPurchased = await Order.exists({
+      user: req.user._id,
+      'orderItems.product': productId,
+      orderStatus: { $ne: 'Cancelled' },
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        canReview: !!hasPurchased,
+        reason: hasPurchased ? null : 'not_purchased',
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { addReview, getProductReviews, deleteReview, canReviewProduct };

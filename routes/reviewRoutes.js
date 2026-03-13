@@ -4,6 +4,7 @@ const {
   addReview,
   getProductReviews,
   deleteReview,
+  canReviewProduct,
 } = require('../controllers/reviewController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -16,6 +17,7 @@ const reviewValidation = [
 ];
 
 router.post('/', protect, reviewValidation, addReview);
+router.get('/can-review/:productId', protect, canReviewProduct);
 router.get('/:productId', getProductReviews);
 router.delete('/:id', protect, deleteReview);
 

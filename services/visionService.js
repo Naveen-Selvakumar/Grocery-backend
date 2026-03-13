@@ -14,14 +14,23 @@ function getAuth() {
 
   // Priority 1: full service-account JSON in env var (Vercel-friendly).
   // Vercel dashboard → Settings → Environment Variables → GOOGLE_CREDENTIALS_JSON
-  // Value: paste the entire contents of the JSON key file.
+  // Value: paste the entire contents of the JSON key file (minified, single line).
   if (process.env.GOOGLE_CREDENTIALS_JSON) {
-    const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
-    _auth = new GoogleAuth({
-      credentials,
-      scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-    });
-    return _auth;
+    try {
+      const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
+      // Fix double-escaped newlines in private_key (common when storing JSON in env vars)
+      if (credentials.private_key) {
+        credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
+      }
+      _auth = new GoogleAuth({
+        credentials,
+        scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+      });
+      return _auth;
+    } catch (e) {
+      console.error('[visionService] Failed to parse GOOGLE_CREDENTIALS_JSON:', e.message);
+      // Fall through to next priority
+    }
   }
 
   // Priority 2: key file on disk (local development)
